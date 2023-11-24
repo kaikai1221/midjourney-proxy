@@ -22,6 +22,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.web.client.RestTemplate;
@@ -54,7 +55,7 @@ public class BeanConfig {
 		Duration timeout = this.properties.getTaskStore().getTimeout();
 		return switch (type) {
 			case IN_MEMORY -> new InMemoryTaskStoreServiceImpl(timeout);
-			case REDIS -> new RedisTaskStoreServiceImpl(timeout, taskRedisTemplate(redisConnectionFactory));
+			case REDIS -> new RedisTaskStoreServiceImpl(timeout, taskRedisTemplate(redisConnectionFactory),stringRedisTemplate(redisConnectionFactory));
 		};
 	}
 
@@ -66,6 +67,16 @@ public class BeanConfig {
 		redisTemplate.setHashKeySerializer(new StringRedisSerializer());
 		redisTemplate.setValueSerializer(new Jackson2JsonRedisSerializer<>(Task.class));
 		return redisTemplate;
+	}
+
+	@Bean
+	StringRedisTemplate stringRedisTemplate(RedisConnectionFactory redisConnectionFactory) {
+		StringRedisTemplate stringRedisTemplate = new StringRedisTemplate ();
+		stringRedisTemplate.setConnectionFactory(redisConnectionFactory);
+		//stringRedisTemplate.setKeySerializer(new StringRedisSerializer());
+		//stringRedisTemplate.setHashKeySerializer(new StringRedisSerializer());
+		//stringRedisTemplate.setValueSerializer(new Jackson2JsonRedisSerializer<>(Task.class));
+		return stringRedisTemplate;
 	}
 
 	@Bean
