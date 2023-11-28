@@ -11,9 +11,9 @@ import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 
 public class RedisTaskStoreServiceImpl implements TaskStoreService {
     private static final String KEY_PREFIX = "mj-task-store::";
@@ -42,7 +42,7 @@ public class RedisTaskStoreServiceImpl implements TaskStoreService {
         String key = getRedisKey(id);
 
         this.redisTemplate.delete(key);
-        stringRedisTemplate.opsForList().remove(ALL_KEY_PREFIX,1,key);
+        stringRedisTemplate.opsForList().remove(ALL_KEY_PREFIX, 1, key);
     }
 
     @Override
@@ -70,7 +70,25 @@ public class RedisTaskStoreServiceImpl implements TaskStoreService {
         //    return Collections.emptyList();
         //}
         ValueOperations<String, Task> operations = this.redisTemplate.opsForValue();
-        return keys.stream().map(operations::get).filter(Objects::nonNull).toList();
+
+        List<Task> res = new ArrayList<>();
+
+        int pageNo = 0;
+        for (; ; ) {
+            try {
+                List<String> page = ListUtil.page(pageNo, 100, keys);
+                if (page.isEmpty()){
+                    break;
+                }
+                pageNo++;
+                res.addAll(operations.multiGet(page));
+            }catch (Exception e){
+                break;
+            }
+        }
+
+        //return keys.stream().map(operations::get).filter(Objects::nonNull).toList();
+        return res;
     }
 
 
@@ -90,19 +108,19 @@ public class RedisTaskStoreServiceImpl implements TaskStoreService {
 
     /**
      * 清理key列表中无效的key
-     *
+     * <p>
      * 每天0点执行
      */
     @Scheduled(cron = "1 0 0 * * ?")
     public void cleanInvalidKey() {
         List<String> keys = stringRedisTemplate.opsForList().range(ALL_KEY_PREFIX, 0, 10000);
-        if (keys==null){
+        if (keys == null) {
             return;
         }
         for (String key : keys) {
             Long counted = stringRedisTemplate.countExistingKeys(Arrays.asList(key));
             if (counted != null && counted == 0) {
-                stringRedisTemplate.opsForList().remove(ALL_KEY_PREFIX,1,key);
+                stringRedisTemplate.opsForList().remove(ALL_KEY_PREFIX, 1, key);
             }
         }
     }
